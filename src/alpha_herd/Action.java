@@ -1,3 +1,5 @@
+package alpha_herd;
+
 public class Action {
 
 public static final int BUY = 1;

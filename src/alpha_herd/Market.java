@@ -1,3 +1,4 @@
+package alpha_herd;
 public class Market {
 
     private int nAgents;

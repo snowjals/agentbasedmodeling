@@ -1,3 +1,4 @@
+package alpha_herd;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -38,9 +39,7 @@ public class Agent {
     }
 
 
-    private List<Agent> getConnections() {
-        return connections;
-    }
+    
 
     public void connect(Agent agent) {
         if (!connections.contains(agent)) connections.add(agent);
