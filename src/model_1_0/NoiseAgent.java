@@ -48,8 +48,8 @@ public class NoiseAgent extends Agent{
             } 
 
 			double currentPrice = stock.getLastClose();
-			int quantity = Utils.getRandomUniform(0, upper);
-			double z = Utils.getRandomNormal(0, volatility_theta);
+			int quantity = MUtils.getRandomUniform(0, upper);
+			double z = MUtils.getRandomNormal(0, volatility_theta);
 
 			if (Math.abs(z) >= tradingIntensity * volatility_H) {
                 int sign = 1;

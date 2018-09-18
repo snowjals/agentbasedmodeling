@@ -41,10 +41,11 @@ public class Utils {
             return 0;
         }
 
-        List<Double> X_sq = square(X);
-        double variance = mean(X_sq) - Math.pow(mean(X), 2);
+        List<Double> X_sq = MUtils.square(X);
+        double variance = MUtils.mean(X_sq) - Math.pow(MUtils.mean(X), 2);
         return Math.sqrt(variance);
 	}
+
 
 	/*@Deprecated
 	public static List<Double> reverse(List<Double> list) {
@@ -55,13 +56,6 @@ public class Utils {
 		return newList;
 	}*/
 	
-    public static List<Double> square(List<Double> arr) {
-        return arr.stream().map(x -> Math.pow(x, 2)).collect(Collectors.toList());
-    }
-
-    public static double mean(List<Double> arr) {
-        return arr.stream().mapToDouble(x -> x).average().orElse(0.0);
-    }
 
 	public static <T> List<T> reverse(List<T> list){
 		List<T> newList = new ArrayList<>(list);
@@ -70,19 +64,6 @@ public class Utils {
 	}
 	
 	
-	public static int getRandomUniform(int lower, int upper) {
-		Random random = new Random();
-		
-		return lower + random.nextInt(upper - lower); 
-		
-	}
-	
-	public static double getRandomNormal(double mean, double std) {
-		Random random = new Random();
-		
-		return mean + random.nextGaussian() * std;
-		
-	}
 
 
 }
