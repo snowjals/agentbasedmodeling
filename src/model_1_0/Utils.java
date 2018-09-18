@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import java.util.stream.Collectors;
 
 
 public class Utils {
@@ -35,9 +36,14 @@ public class Utils {
 	public static double volatility(Stock stock, int timeHorizon) {
 		List<Double> logReturns = getReturns(stock);
 		List<Double> X = reverse(logReturns).subList(0, Math.min(timeHorizon + 1,logReturns.size()));
-		double variance = (logReturns.size() == 0 ? 0 : X.stream().mapToDouble(x -> Math.pow(x, 2)).average().getAsDouble() - Math.pow(X.stream().mapToDouble(d -> d.doubleValue()).average().getAsDouble(),2));
-		
-		return Math.sqrt(variance);
+
+        if (logReturns.size() == 0) {
+            return 0;
+        }
+
+        List<Double> X_sq = square(X);
+        double variance = mean(X_sq) - Math.pow(mean(X), 2);
+        return Math.sqrt(variance);
 	}
 
 	/*@Deprecated
@@ -49,6 +55,14 @@ public class Utils {
 		return newList;
 	}*/
 	
+    public static List<Double> square(List<Double> arr) {
+        return arr.stream().map(x -> Math.pow(x, 2)).collect(Collectors.toList());
+    }
+
+    public static double mean(List<Double> arr) {
+        return arr.stream().mapToDouble(x -> x).average().orElse(0.0);
+    }
+
 	public static <T> List<T> reverse(List<T> list){
 		List<T> newList = new ArrayList<>(list);
 		Collections.reverse(newList);
