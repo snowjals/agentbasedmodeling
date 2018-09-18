@@ -3,7 +3,7 @@ package model_1_0;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Stock {
+public class Stock extends Asset {
 
 	private List<Double> prices = new ArrayList<>();
 	private String ticker;

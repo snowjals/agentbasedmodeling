@@ -10,8 +10,8 @@ public class TrendAgent extends Agent {
 	private double c;
 	private int theta;
 
-	public TrendAgent(Portfolio marketPortfolio,int theta, double c, double epsilon) {
-		super(marketPortfolio);
+	public TrendAgent(Portfolio marketPortfolio, double initialWealth, int theta, double c, double epsilon) {
+		super(marketPortfolio, initialWealth);
 		this.theta = theta;
 		this.c = c;
 		this.epsilon = epsilon;
@@ -22,18 +22,22 @@ public class TrendAgent extends Agent {
 		List<Order> orders = new  ArrayList<>();
 		
 		for (Stock stock : market.getPortfolio().getStocks()) {
-			if (stock.getPrices().size() <= theta) {  //TODO
+			if (stock.getPrices().size() < theta + 1 ) { 
 				continue;
 			}
-				
-			double currentLogPrice = Math.log(stock.getPrices().get(stock.getPrices().size() - 1));
+			
+			double currentPrice = stock.getLastClose();	
+			double currentLogPrice = Math.log(currentPrice);
 			double referencePrice = Math.log(stock.getPrices().get(stock.getPrices().size() - (theta + 1)));
 			
 			if (Math.abs(currentLogPrice - referencePrice) >= epsilon) {
 				int quantity = (int) Math.round(c * (currentLogPrice - referencePrice) - portfolio.getX(stock));
 				if (quantity != 0) {
+					if (! sufficientFunds(quantity,currentPrice)) {
+						quantity = (int) adjustQuantity(currentPrice);
+					}
 					orders.add(new Order(stock,quantity));
-					updateStockHolding(stock, quantity);
+					updateAssetHolding(stock, quantity);
 				}
 				
 			}

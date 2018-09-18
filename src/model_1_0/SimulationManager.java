@@ -86,16 +86,29 @@ public class SimulationManager {
 	}
 	
 	public void simulate() {
+		kickStartSystem();
 		
-		List<Order> orderBook = new ArrayList<>();
-		market.addOrders(0,orderBook);
-		
-		
-		currentStep = 1;
-		for (int i = 1; i < nSteps; i++) {
+		for (int i = currentStep; i < nSteps; i++) {
 			doStep();
 			System.out.println("Step: " + currentStep + " Price: " + market.getPortfolio().getStocks().get(0).getPrices().get(market.getPortfolio().getStocks().get(0).getPrices().size() - 1));
 			currentStep++;
+		}
+		
+	}
+	
+	private void kickStartSystem() {
+		
+		for (int i = 0; i < 10; i++) {
+			List<Order> orderBook = new ArrayList<>();
+			orderBook.add(new Order(market.getPortfolio().getStock("VIX"),1));
+			for (Agent agent : agents) {
+				orderBook.addAll(agent.updatePortfolio(market));
+			}
+			market.updatePrices(orderBook, currentStep);
+		
+			System.out.println("Step: " + currentStep + " Price: " + market.getPortfolio().getStocks().get(0).getPrices().get(market.getPortfolio().getStocks().get(0).getPrices().size() - 1));
+			currentStep++;
+	
 		}
 		
 	}
@@ -111,7 +124,7 @@ public class SimulationManager {
 	
 	
 	public static void main(String[] args) {
-		SimulationManager manager = new SimulationManager(1000, 10, 10, 1/20, 30, 1.25);
+		SimulationManager manager = new SimulationManager(1000, 100, 100, 1/2000, 30, 1.25);
 		manager.simulate();
 	}
 	

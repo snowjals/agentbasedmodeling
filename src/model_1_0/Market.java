@@ -1,5 +1,6 @@
 package model_1_0;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +40,10 @@ public class Market {
 	
 	
 	public List<Order> getOrders(int step, Stock stock){
+		if (orderbook.get(step) == null) {
+			System.out.println("No history for step " + step);
+			return new ArrayList<Order>();
+		}
 		return orderbook.get(step).stream().filter(order -> order.getStock() == stock).collect(Collectors.toList());
 	}
 
