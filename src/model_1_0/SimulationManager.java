@@ -33,7 +33,7 @@ public class SimulationManager {
 	private Portfolio initialMarketPorfolio() {
 		double lambda = 1; // TODO
 		Stock stock = new Stock("VIX",100,lambda);
-		List<Stock> stocks = new ArrayList<Stock>();
+		List<Asset> stocks = new ArrayList<Asset>();
 		stocks.add(stock);
 		Portfolio marketPortfolio = new Portfolio(stocks);
 		return marketPortfolio;
@@ -62,13 +62,14 @@ public class SimulationManager {
 
 
 	private void initializeTrendAgents() {
+		double initialWealth = 100000;
 		
 		int theta = 30;
 		double c = 1.2;
 		double epsilon = 0.05;
 		
 		for (int i = 0; i < nTrendAgents; i++) {
-			Agent agent = new TrendAgent(market.getPortfolio(),theta, c, epsilon); // TODO fix random variables
+			Agent agent = new TrendAgent(market.getPortfolio(), initialWealth ,theta, c, epsilon); // TODO fix random variables
 			agents.add(agent);
 		}
 		
@@ -77,9 +78,11 @@ public class SimulationManager {
 
 
 	private void initializeNoiseAgents() {
+		double initialWealth = 100000;
+		
 		int theta = 5; // TODO;
 		for (int i = 0; i < nNoiseAgents; i++) {
-			Agent agent = new NoiseAgent(market.getPortfolio(),k,theta,H,tradingIntensity);
+			Agent agent = new NoiseAgent(market.getPortfolio(), initialWealth,k,theta,H,tradingIntensity);
 			agents.add(agent);
 		}
 		
@@ -124,7 +127,7 @@ public class SimulationManager {
 	
 	
 	public static void main(String[] args) {
-		SimulationManager manager = new SimulationManager(1000, 100, 100, 1/2000, 30, 1.25);
+		SimulationManager manager = new SimulationManager(1000, 100, 100, 1/200, 10, 1.25);
 		manager.simulate();
 	}
 	

@@ -25,8 +25,7 @@ public abstract class Agent {
 			portfolio.updateCash( - amount); // the change is negative for a buy, positive for a sell
 			
 		} else if (asset instanceof Bond) {
-			double amount = quantity * ((Stock) asset).getLastClose();
-			portfolio.updateCash( - amount); // see above
+		//TODO add support for bonds
 
 		} else if (asset instanceof Cash){
 			portfolio.getPortfolio().put(cash, quantity);
