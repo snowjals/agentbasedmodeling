@@ -36,7 +36,7 @@ public class TrendAgent extends Agent {
 					if (! sufficientFunds(quantity,currentPrice)) {
 						quantity = (int) adjustQuantity(currentPrice);
 					}
-					orders.add(new Order(stock,quantity));
+					orders.add(new Order(stock,quantity, this));
 					updateAssetHolding(stock, quantity);
 				}
 				
