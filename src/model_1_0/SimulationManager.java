@@ -92,7 +92,7 @@ public class SimulationManager {
 		
 		for (int i = currentStep; i < nSteps; i++) {
 			doStep();
-			System.out.println("Step: " + currentStep + " Price: " + market.getPortfolio().getStocks().get(0).getPrices().get(market.getPortfolio().getStocks().get(0).getPrices().size() - 1));
+			// System.out.println("Step: " + currentStep + " Price: " + market.getPortfolio().getStocks().get(0).getPrices().get(market.getPortfolio().getStocks().get(0).getPrices().size() - 1));
 			currentStep++;
 		}
 		
@@ -102,13 +102,13 @@ public class SimulationManager {
 		
 		for (int i = 0; i < 10; i++) {
 			List<Order> orderBook = new ArrayList<>();
-			orderBook.add(new Order(market.getPortfolio().getStock("VIX"),1));
+			orderBook.add(new Order(market.getPortfolio().getStock("VIX"),1, null));
 			for (Agent agent : agents) {
 				orderBook.addAll(agent.updatePortfolio(market));
 			}
 			market.updatePrices(orderBook, currentStep);
 		
-			System.out.println("Step: " + currentStep + " Price: " + market.getPortfolio().getStocks().get(0).getPrices().get(market.getPortfolio().getStocks().get(0).getPrices().size() - 1));
+			// System.out.println("Step: " + currentStep + " Price: " + market.getPortfolio().getStocks().get(0).getPrices().get(market.getPortfolio().getStocks().get(0).getPrices().size() - 1));
 			currentStep++;
 	
 		}
@@ -120,13 +120,19 @@ public class SimulationManager {
 		for (Agent agent : agents) {
 			orderBook.addAll(agent.updatePortfolio(market));
 		}
+
 		market.updatePrices(orderBook, currentStep);
+        double currPrice = market.getPortfolio().getStock("VIX").getLastClose();
+        System.out.println("in step " + this.currentStep +  ", price is " + currPrice + " and orderbook is this: \n" + orderBook);
+        System.out.println("\n");
+
+
 		
 	}
 	
 	
 	public static void main(String[] args) {
-		SimulationManager manager = new SimulationManager(1000, 100, 100, 1/200, 10, 1.25);
+		SimulationManager manager = new SimulationManager(100, 30, 30, 1/200, 10, 1.25);
 		manager.simulate();
 	}
 	
