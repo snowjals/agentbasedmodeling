@@ -30,7 +30,7 @@ public class SimulationManager {
 	}
 
 	private Portfolio initialMarketPorfolio() {
-		double lambda = 1; // TODO
+		double lambda = 25;
 		Stock stock = new Stock("VIX",100,lambda);
 		List<Asset> stocks = new ArrayList<Asset>();
 		stocks.add(stock);

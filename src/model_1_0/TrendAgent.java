@@ -22,16 +22,19 @@ public class TrendAgent extends Agent {
 		List<Order> orders = new  ArrayList<>();
 		
 		for (Stock stock : market.getPortfolio().getStocks()) {
+            int historyPrice = stock.getPrices().size();
 			if (stock.getPrices().size() < theta + 1 ) { 
 				continue;
 			}
+
+            int theta = Math.min(historyPrice, this.theta);
 			
 			double currentPrice = stock.getLastClose();	
 			double currentLogPrice = Math.log(currentPrice);
 			double referencePrice = Math.log(stock.getPrices().get(stock.getPrices().size() - (theta + 1)));
-			
+
 			if (Math.abs(currentLogPrice - referencePrice) >= epsilon) {
-				int quantity = (int) Math.round(c * (currentLogPrice - referencePrice) - portfolio.getX(stock));
+                int quantity = Math.max(1, (int) Math.round(c * (currentLogPrice - referencePrice) - portfolio.getX(stock)));
 				if (quantity != 0) {
 					if (! sufficientFunds(quantity,currentPrice)) {
 						quantity = (int) adjustQuantity(currentPrice);
