@@ -1,0 +1,14 @@
+{
+    "noise": {
+        "n_agents": 10,
+        "initial_cash": "np.random.normal(1000, 0)",
+        "trading_intensity": "np.random.uniform(0.10, 0.25)"
+    },
+    "trend": {
+        "n_agents": 0,
+        "initial_cash": "np.random.normal(1000, 0)",
+        "c": "np.random.uniform(0.5, 5)",
+        "theta": "np.random.randint(5, 30)",
+        "epsilon": "np.random.uniform(.01, .10)"
+    }
+}

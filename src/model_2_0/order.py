@@ -70,7 +70,8 @@ class Order:
         return self.bid or self.ask
 
     def __repr__(self):
+        by_agent = self.by.id
         ticker = self.asset.ticker
         type = 'buy' if self.is_buy() else 'sell'
         price = self.bid or self.ask
-        return f'{type} order on {ticker}: Q={self.quantity}, P={price}'
+        return f'{type} order on by {by_agent}; {ticker}: Q={self.quantity}, P={price}'

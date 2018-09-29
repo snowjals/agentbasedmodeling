@@ -1,6 +1,7 @@
 from portfolio import Portfolio
 from order import Order
 import numpy as np
+from utils import sigmoid
 
 
 class Agent:
@@ -13,6 +14,7 @@ class Agent:
         Generates an Agent instance with an empty portfolio; It only consists
         of `initial_cash` (all stocks have quantity 0.0).
         '''
+        self.id = id
         self.portfolio = Portfolio.empty_portfolio(assets)
         self.portfolio.set_cash_amount(initial_cash)
         self.pending_orders = []
@@ -86,19 +88,28 @@ class Agent:
             cash_delta = order.executed_price * order.executed_quantity
             portfolio.update_cash(cash_delta)
 
+    def __repr__(self):
+        portfolio = self.portfolio
+        cash_avail = portfolio.get_cash_amount()
+        market_value = 0
+        for stock in portfolio.get_stocks():
+            qty = portfolio.assets[stock]
+            market_value += stock.get_last_price() * qty
+
+        return f'{self.id} w/ cash {cash_avail} and market value {market_value}'
 
 
 class NoiseAgent(Agent):
-    def __init__(self, id, assets, initial_cash, trading_prob):
+    def __init__(self, id, assets, initial_cash, trading_intensity):
         super().__init__(id, assets, initial_cash)
-        self.trading_prob = trading_prob
+        self.trading_intensity = trading_intensity
 
     def update_portfolio(self, exchange):
         portfolio = self.portfolio
         timestamp = exchange.get_timestamp()
 
         for each in portfolio.get_stocks():
-            should_I_trade = np.random.choice([True, False], p=(self.trading_prob, 1-self.trading_prob))
+            should_I_trade = np.random.choice([True, False], p=(self.trading_intensity, 1-self.trading_intensity))
             if not should_I_trade: continue
 
             orderbook = exchange.orderbooks[each]
@@ -125,4 +136,52 @@ class NoiseAgent(Agent):
                 qty = np.random.randint(1, max_qty + 1)
                 price = lowest_ask / np.random.normal(1.01, 0.01)
                 order = self.create_order(each, price, qty, timestamp, buy=False)
+                self.submit_order(exchange, order)
+
+
+class TrendAgent(Agent):
+    def __init__(self, id, assets, initial_cash, c, theta, epsilon):
+        super().__init__(id, assets, initial_cash)
+        self.id = id
+        self.assets = assets
+        self.c = c
+        self.theta = theta
+        self.epsilon = epsilon
+
+    def update_portfolio(self, exchange):
+        portfolio = self.portfolio
+        timestamp = exchange.get_timestamp()
+
+        for stock in portfolio.get_stocks():
+
+            # don't do trade there is not enough price history.
+            highest_bid, lowest_ask = exchange.orderbooks[stock].get_bid_ask(stock)
+
+            enough_history = len(stock.prices) > self.theta
+            if not enough_history: continue
+
+            momentum_up = np.log(highest_bid) - np.log(stock.prices[-self.theta]) > self.epsilon
+            momentum_down = np.log(lowest_ask) - np.log(stock.prices[-self.theta]) < -self.epsilon
+            can_buy_one = portfolio.get_cash_amount() > lowest_ask
+            can_sell_one = portfolio.assets[stock] > 0
+
+            should_I_trade = (momentum_up and can_buy_one) or (momentum_down and can_sell_one)
+            if not should_I_trade: continue
+
+            if momentum_up and can_buy_one:  # it's going uuup
+                max_qty = (sigmoid(self.c) * portfolio.get_cash_amount()) // lowest_ask
+                if max_qty == 0: continue  # couldnt' afford after all with risk-aversion
+
+                price = highest_bid * np.random.normal(1.01, 0.01)
+                qty = np.random.randint(1, max_qty + 1)
+                order = self.create_order(stock, price, qty, timestamp, buy=True)
+                self.submit_order(exchange, order)
+
+            if momentum_down and can_sell_one:
+                max_qty = portfolio.assets[stock]
+                if max_qty == 0:
+                    continue
+                qty = np.random.randint(1, max_qty + 1)
+                price = highest_bid / np.random.normal(1.01, 0.01)
+                order = self.create_order(stock, price, qty, timestamp, buy=False)
                 self.submit_order(exchange, order)

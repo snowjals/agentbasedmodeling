@@ -15,40 +15,29 @@ class Orderbook:
         order: instance of order.
         '''
 
+        if try_to_match:
+            # first try to match -- if no match is found, then
+            # call `self.submit` with `try_to_match=False`
+            self.match_order(order)
+            return
+
         if order.is_buy():
-            if self.lowest_ask > order.bid:
-                self.buy_orders.append(order)
-                self.highest_bid = max(self.highest_bid or 0, order.bid)
-                return
-            if try_to_match:
-                self.match_buy_order(order)
-            else:
-                self.buy_orders.append(order)
+            self.buy_orders.append(order)
+        else:
+            self.sell_orders.append(order)
+        self._update_max_bid_min_ask()
 
-        else:  # I sell
-            if self.highest_bid < order.ask:
-                self.sell_orders.append(order)
-                self.lowest_ask = min(self.lowest_ask or np.inf, order.ask)
-                return
-            if try_to_match:
-                self.match_sell_order(order)
-            else:
-                self.sell_orders.append(order)
-                # self.match_sell_order(order)
+    def match_order(self, order):
+        opposite_orders = self.sell_orders if order.is_buy() else self.buy_orders
 
-    def match_sell_order(self, order):
-        def sort_key(order):
-            return (-order.bid, order.submitted_timestamp.step)
+        sort_key = None
+        if order.is_buy():
+            sort_key = lambda x: (x.ask, x.submitted_timestamp.step)  # noqa
+        else:
+            sort_key = lambda x: (-x.bid, x.submitted_timestamp.step)  # noqa
 
-        self.buy_orders.sort(key=sort_key)
-        self._match_order(order, self.buy_orders)
-
-    def match_buy_order(self, order):
-        def sort_key(order):
-            return (order.ask, order.submitted_timestamp.step)
-
-        self.sell_orders.sort(key=sort_key)
-        self._match_order(order, self.sell_orders)
+        opposite_orders.sort(key=sort_key)
+        self._match_order(order, opposite_orders)
 
     @staticmethod
     def will_transact(order1, order2):
@@ -73,12 +62,9 @@ class Orderbook:
         match = None
         while (len(matches) > 0) and (not order.is_completed()) and Orderbook.will_transact(matches[0], order):
             match = matches.pop(0)
-            if order.is_completed():
-                import ipdb;ipdb.set_trace()
-            if match.is_completed():  import ipdb;ipdb.set_trace()
 
             if not Orderbook.will_transact(order, match):
-                matches.append(match)  # put it back...
+                self.submit(match)  # put it back
                 return
 
             realized_price = match.get_price()
@@ -86,36 +72,80 @@ class Orderbook:
             quantity = min(match.quantity, order.quantity)
             order = self.order_execute(order, realized_price, quantity, timestamp)
             match = self.order_execute(match, realized_price, quantity, timestamp)
+            if order.is_completed():
+                if not match.is_completed():
+                    self.submit(match)
+                break
 
         if not order.is_completed():
             self.submit(order)
-        if match is not None and (not match.is_completed()) and  match.quantity > 0:
-            self.submit(match)
-            # matches.append(match)
 
     def order_execute(self, order, realized_price, quantity, timestamp):
         self.completed_orders.append(order)
         if order.quantity > quantity:
             order = order.partially_execute(realized_price, quantity, timestamp)
-            # self.submit(order)
             return order
         else:
             order.execute(realized_price, quantity, timestamp)
-            # order.quantity = 0
+            # import ipdb;ipdb.set_trace()
             return order
 
     def cancel_all_pending_orders(self):
         for each in self.buy_orders:
-            if each.executed_timestamp is not None: import ipdb;ipdb.set_trace()
             cash_delta = each.quantity * each.bid
             each.by.portfolio.update_cash(cash_delta)
 
         for each in self.sell_orders:
-            if each.executed_timestamp is not None: import ipdb;ipdb.set_trace()
             each.by.portfolio.assets[each.asset] += each.quantity
 
         self.buy_orders = []
         self.sell_orders = []
 
+    def _update_max_bid_min_ask(self):
+        '''
+        Determination of highest bid:
+            * if there are currently active orders, choose the highest one
+            * otherwise, choose the most recent buy order that is completed
+            * otherwise, use the default `self.highest_bid` as reference.
+
+        Determination of lowest ask:
+            * If there are currently active orders, choose the lowest one
+            * Otherwise, choose the most recent sell order that is completed
+            * Otherwise, use the default `self.lowest_ask` as reference.
+
+        returns None
+        '''
+        if len(self.buy_orders) > 0:
+            self.highest_bid = max(self.buy_orders, key=lambda x: x.bid).bid
+        elif len(self.completed_orders) > 0:
+            order = self.completed_orders[-1]
+            self.highest_bid = order.executed_price
+        else:
+            self.highest_bid = self.highest_bid
+
+        if len(self.sell_orders) > 0:
+            self.lowest_ask = min(self.sell_orders, key=lambda x: x.ask).ask
+        elif len(self.completed_orders) > 0:
+            order = self.completed_orders[-1]
+            self.lowest_ask = order.executed_price
+        else:
+            self.lowest_ask = self.lowest_ask
+        print('updating bid,ask: ',self.highest_bid, self.lowest_ask)
+
+    def get_bid_ask(self, asset):
+        '''
+        returns (highest_bid, lowest_ask) of a given asset.
+        '''
+        return self.highest_bid, self.lowest_ask
+
+    def get_last_completed(self, err_raise=False):
+        if len(self.completed_orders) == 0:
+            if not err_raise:
+                return 0
+            else:
+                raise ValueError('No completed orders available for this stock')
+        return self.completed_orders[-1].executed_price
+
     def __repr__(self):
-        return f'Orderbook w/ {len(self.buy_orders)} buy orders and {len(self.sell_orders)} sell orders'
+        return f'Orderbook w/ {len(self.buy_orders)} buy orders and\
+                {len(self.sell_orders)} sell orders'

@@ -6,9 +6,26 @@ from orderbook import Orderbook
 from order import Order
 from timestamp import Timestamp
 from exchange import Exchange
-
+from agentgenerator import AgentGenerator
+from simulationmanager import Simulationmanager
 tickers = ['AXA', 'EQNR', 'NHY', 'YARA', 'B2H']
-stocks = [Stock(each, 100) for each in tickers]
+assets = [Stock(each, 100) for each in tickers]
+agents = AgentGenerator.generate('agent_config.json', assets)
+mng = Simulationmanager(25, 5, None, 'agent_config.json')
+mng.simulate()
+
+X = np.array(mng.history)
+# plot stuff
+plt.ion()
+ax = plt.gca()
+ax.cla()
+for i, stock in enumerate(mng.assets):
+    ax.plot(X[:, i], label=stock.ticker)
+plt.legend()
+mng.agents
+
+
+
 Portfolio.empty_portfolio(stocks)
 agent = Agent(stocks, 100)
 book = Orderbook([], [])

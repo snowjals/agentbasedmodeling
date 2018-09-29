@@ -15,7 +15,7 @@ class Stock(Asset):
         return self.prices[-1]
 
     def add_price(self, new_price):
-        self.prices = self.prices.append(new_price)
+        self.prices.append(new_price)
         return
 
     def __repr__(self):
