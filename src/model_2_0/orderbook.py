@@ -130,7 +130,6 @@ class Orderbook:
             self.lowest_ask = order.executed_price
         else:
             self.lowest_ask = self.lowest_ask
-        print('updating bid,ask: ',self.highest_bid, self.lowest_ask)
 
     def get_bid_ask(self, asset):
         '''

@@ -38,14 +38,8 @@ class Simulationmanager:
             self.history.append(close)
 
     def _simulate_day(self, day):
-        print('\n\n\n\n\n')
         for step in range(self.n_steps_per_day):
             self._simulate_step(day, step)
-        for e in self.exchange.orderbooks:
-            print(e)
-        for e in self.exchange.portfolio.get_stocks():
-            print(e.get_last_price())
-            print('\n\n\n\n')
         self.exchange.end_of_day()  # ding ding ding
 
     def _simulate_step(self, day, step):

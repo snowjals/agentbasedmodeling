@@ -1,3 +1,4 @@
+#
 import numpy as np
 from stock import Stock
 from agent import Agent, NoiseAgent
@@ -11,9 +12,8 @@ from simulationmanager import Simulationmanager
 tickers = ['AXA', 'EQNR', 'NHY', 'YARA', 'B2H']
 assets = [Stock(each, 100) for each in tickers]
 agents = AgentGenerator.generate('agent_config.json', assets)
-mng = Simulationmanager(25, 5, None, 'agent_config.json')
+mng = Simulationmanager(40, 1, None, 'agent_config.json')
 mng.simulate()
-
 X = np.array(mng.history)
 # plot stuff
 plt.ion()

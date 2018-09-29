@@ -22,7 +22,6 @@ class Exchange:
         if order.asset not in self.orderbooks.keys():
             raise ValueError('this is bad.')
 
-        print(f'submitting {order}')
         self.orderbooks[order.asset].submit(order, try_to_match=True)
 
     def end_of_day(self):
