@@ -1,4 +1,5 @@
 #
+from scipy import stats 
 import numpy as np
 from stock import Stock
 from agent import Agent, NoiseAgent
@@ -12,8 +13,14 @@ from simulationmanager import Simulationmanager
 tickers = ['AXA', 'EQNR', 'NHY', 'YARA', 'B2H']
 assets = [Stock(each, 100) for each in tickers]
 agents = AgentGenerator.generate('agent_config.json', assets)
-mng = Simulationmanager(40, 1, None, 'agent_config.json')
+mng = Simulationmanager(10000, 10, None, 'agent_config.json')
 mng.simulate()
+stocks=mng.market_portfolio.get_stocks()
+print(stocks[0].dividends)
+X = [a+b for a,b in zip(stocks[0].prices + stocks[0].dividends)]
+returns = np.diff(np.log(X))
+mu, std = np.mean(returns), np.std(returns)
+kurtosis, skew = stats.kurtosis(returns), stats.skew(returns)
 X = np.array(mng.history)
 # plot stuff
 plt.ion()
@@ -21,8 +28,10 @@ ax = plt.gca()
 ax.cla()
 for i, stock in enumerate(mng.assets):
     ax.plot(X[:, i], label=stock.ticker)
+ax.plot(stocks[0].dividends)
 plt.legend()
 mng.agents
+print(f'mu {mu}, std {std}, kurtosis {kurtosis}, skew {skew}')
 
 
 

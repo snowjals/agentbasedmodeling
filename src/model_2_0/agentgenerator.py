@@ -1,5 +1,5 @@
 import json
-from agent import NoiseAgent, TrendAgent
+from agent import NoiseAgent, TrendAgent, ValueAgent
 import inspect
 import sys
 
@@ -17,7 +17,8 @@ class AgentGenerator:
             config = json.load(f)
 
         agent_types = {'noise': NoiseAgent,
-                       'trend': TrendAgent}
+                       'trend': TrendAgent,
+                       'value': ValueAgent}
 
         generated_agents = []
         for k, cls in agent_types.items():

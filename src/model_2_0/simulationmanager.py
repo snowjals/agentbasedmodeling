@@ -26,8 +26,7 @@ class Simulationmanager:
         self.timestamp = Timestamp(0, 0)
 
         self.market_portfolio = Portfolio.empty_portfolio(self.assets)
-        n_agents = len(self.agents)
-        self.exchange = Exchange(n_agents, self.market_portfolio)
+        self.exchange = Exchange(self.agents, self.market_portfolio)
 
         self.history = []
 
@@ -38,6 +37,7 @@ class Simulationmanager:
             self.history.append(close)
 
     def _simulate_day(self, day):
+        self.exchange.start_of_day()  # yaawn
         for step in range(self.n_steps_per_day):
             self._simulate_step(day, step)
         self.exchange.end_of_day()  # ding ding ding
