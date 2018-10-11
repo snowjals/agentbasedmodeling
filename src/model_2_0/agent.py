@@ -143,7 +143,6 @@ class ValueAgent(Agent):
             price = stock.get_last_price()
             discrepancy = value / price
 
-            # print(f'I value {stock.ticker} to {value} vs {price} now :)')
             if discrepancy - 1 > self.epsilon:  # buy
                 self.buy_stock(stock, exchange)
             elif discrepancy - 1 < self.epsilon:
@@ -187,6 +186,11 @@ class NoiseAgent(Agent):
 
             orderbook = exchange.orderbooks[each]
             highest_bid, lowest_ask = orderbook.highest_bid, orderbook.lowest_ask
+            M, m = max(highest_bid, lowest_ask), min(highest_bid, lowest_ask)
+            if (M-m)/m > 0.50: 
+                print('noticed major bid-ask discrepancy of >50%')
+                # import ipdb;ipdb.set_trace()
+            
 
             do_buy = np.random.choice([True, False])
 
@@ -233,10 +237,6 @@ class TrendAgent(Agent):
 
             div_period = min(len(stock.dividends), self.theta)
             D = sum(stock.dividends[-div_period:])
-            # if len(stock.dividends) > 100:
-            #     print(stock.dividends)
-            #     import ipdb;ipdb.set_trace()
-            # 0 / 0
 
             momentum_up = np.log(highest_bid + D) - np.log(stock.prices[-self.theta]) > self.epsilon  # noqa
             momentum_down = np.log(lowest_ask  + D) - np.log(stock.prices[-self.theta]) > self.epsilon  # noqa

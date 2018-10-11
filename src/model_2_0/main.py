@@ -12,23 +12,60 @@ from agentgenerator import AgentGenerator
 from simulationmanager import Simulationmanager
 tickers = ['AXA', 'EQNR', 'NHY', 'YARA', 'B2H']
 assets = [Stock(each, 100) for each in tickers]
-agents = AgentGenerator.generate('agent_config.json', assets)
-mng = Simulationmanager(10000, 10, None, 'agent_config.json')
+mng = Simulationmanager(1350, 5, None, 'agent_config.json')
+agents = mng.agents
+
+cash_start = sum(e.get_available_funds() for e in agents)
+stocks_start = sum(list(e.portfolio.assets.values())[0] for e in agents)
+
 mng.simulate()
+
+cash_end = sum(e.get_available_funds() for e in agents)
+stocks_end = sum(list(e.portfolio.assets.values())[0] for e in agents)
+
+print('cash in system:', cash_start, cash_end)
+print('stocks in system:', stocks_start, stocks_end)
+
 stocks=mng.market_portfolio.get_stocks()
-print(stocks[0].dividends)
-X = [a+b for a,b in zip(stocks[0].prices + stocks[0].dividends)]
 returns = np.diff(np.log(X))
+
+S = stocks[0]
+D = np.array(S.dividends)
+P = np.array(S.prices)
+mask = D > 0
+
+yields = D / P
+
+plt.plot(yields)
+
+f, axs = plt.subplots(2, 1)
+axs = axs.flatten()
+
+axs[0].plot(D)
+axs[1].plot(yields)
+
+plt.ion()
+plt.plot(D)
+
+
+yields = D[mask]/P[mask]
+print(yields)
+0 / 0
+
 mu, std = np.mean(returns), np.std(returns)
 kurtosis, skew = stats.kurtosis(returns), stats.skew(returns)
 X = np.array(mng.history)
+
+import sys
+sys.exit(0)
+
 # plot stuff
 plt.ion()
 ax = plt.gca()
 ax.cla()
 for i, stock in enumerate(mng.assets):
     ax.plot(X[:, i], label=stock.ticker)
-ax.plot(stocks[0].dividends)
+# ax.plot(stocks[0].dividends)
 plt.legend()
 mng.agents
 print(f'mu {mu}, std {std}, kurtosis {kurtosis}, skew {skew}')

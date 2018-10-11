@@ -5,6 +5,7 @@ from orderbook import Orderbook
 from exchange import Exchange
 from portfolio import Portfolio
 from tqdm import tqdm
+import json
 
 
 class Simulationmanager:
@@ -13,6 +14,7 @@ class Simulationmanager:
         self.n_steps_per_day = n_steps_per_day
 
         self.tickers = ['AXA',]
+        # self.tickers = ['AXA', 'B2H']
         self.assets = [Stock(each, 100) for each in self.tickers]  # 100 in start price
         self.book = Orderbook([], [])
 
@@ -22,6 +24,7 @@ class Simulationmanager:
         for agent in self.agents:
             for stock in self.assets:
                 agent.portfolio.assets[stock] = 100
+                pass
 
         self.timestamp = Timestamp(0, 0)
 
@@ -30,17 +33,23 @@ class Simulationmanager:
 
         self.history = []
 
-    def simulate(self):
+    def simulate(self, logname='/tmp/output.log'):
         for day in tqdm(range(self.n_days - self.timestamp.day)):
             self._simulate_day(day)
             close = [each.get_last_price() for each in self.assets]
-            self.history.append(close)
+
+        with open(logname, 'w') as f:
+            f.write(json.dumps(self.history))
 
     def _simulate_day(self, day):
         self.exchange.start_of_day()  # yaawn
         for step in range(self.n_steps_per_day):
             self._simulate_step(day, step)
         self.exchange.end_of_day()  # ding ding ding
+        orderbook_data = self.exchange.orderbook_dumps()
+        # import ipdb; ipdb.set_trace()
+        self.history = self.history + orderbook_data
+        # self.history.append(orderbook_data)
 
     def _simulate_step(self, day, step):
         self.timestamp = Timestamp(day, step)

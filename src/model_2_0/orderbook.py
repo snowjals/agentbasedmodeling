@@ -25,7 +25,7 @@ class Orderbook:
             self.buy_orders.append(order)
         else:
             self.sell_orders.append(order)
-        self._update_max_bid_min_ask()
+        self._update_max_bid_min_ask(order.bid or order.ask)
 
     def match_order(self, order):
         opposite_orders = self.sell_orders if order.is_buy() else self.buy_orders
@@ -101,7 +101,7 @@ class Orderbook:
         self.buy_orders = []
         self.sell_orders = []
 
-    def _update_max_bid_min_ask(self):
+    def _update_max_bid_min_ask(self, default_value):
         '''
         Determination of highest bid:
             * if there are currently active orders, choose the highest one
@@ -121,7 +121,7 @@ class Orderbook:
             order = self.completed_orders[-1]
             self.highest_bid = order.executed_price
         else:
-            self.highest_bid = self.highest_bid
+            self.highest_bid = default_value
 
         if len(self.sell_orders) > 0:
             self.lowest_ask = min(self.sell_orders, key=lambda x: x.ask).ask
@@ -129,7 +129,7 @@ class Orderbook:
             order = self.completed_orders[-1]
             self.lowest_ask = order.executed_price
         else:
-            self.lowest_ask = self.lowest_ask
+            self.lowest_ask = default_value
 
     def get_bid_ask(self, asset):
         '''

@@ -11,7 +11,7 @@ class Stock(Asset):
 
         self.ticker = ticker
         self.prices = [price]
-        self.div_period = 70
+        self.div_period = 68
         self.dividends = [0]
 
     def get_last_price(self):

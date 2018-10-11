@@ -1,4 +1,5 @@
 from orderbook import Orderbook
+import json
 
 
 class Exchange:
@@ -28,8 +29,6 @@ class Exchange:
     def start_of_day(self):
         for stock, orderbook in self.orderbooks.items():
             stock.calculate_dividend()
-            if stock.dividends[-1] > stock.prices[-1]:
-                import ipdb;ipdb.set_trace()
             if stock.dividends[-1] > 0:
                 orderbook.highest_bid -= stock.dividends[-1]
                 orderbook.lowest_ask -= stock.dividends[-1]
@@ -37,11 +36,27 @@ class Exchange:
                     agent.receive_dividend(stock)  # possibly zero, if dont hold
 
     def end_of_day(self):
-        for stock in self.orderbooks.keys():
-            orderbook = self.orderbooks[stock]
+        for stock, orderbook in self.orderbooks.items():
             last_close = orderbook.get_last_completed()
             if last_close == 0:  # no trade is done
                 last_close = stock.get_last_price()
 
             stock.add_price(last_close)
             orderbook.cancel_all_pending_orders()
+            orderbook._update_max_bid_min_ask(stock.prices[-1])
+
+    def orderbook_dumps(self):
+
+        data = []
+        for book in self.orderbooks.values():
+            data += [each.get_completed_info()
+                     for each in book.completed_orders]
+
+
+        # data = [[each.get_completed_info() for each in
+        #          book.completed_orders] for book in self.orderbooks.values()]
+
+        for k in self.orderbooks.keys():
+            self.orderbooks[k].completed_orders = []
+
+        return data

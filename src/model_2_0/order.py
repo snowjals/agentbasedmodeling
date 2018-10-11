@@ -69,9 +69,26 @@ class Order:
     def get_price(self):
         return self.bid or self.ask
 
+    def get_completed_info(self):
+        s_ts = self.submitted_timestamp
+        e_ts = self.executed_timestamp
+
+        return {'by': self.by.id,
+                'type': 'buy' if self.is_buy() else 'sell',
+                'ticker': self.asset.ticker,
+                'submit_price': self.bid or self.ask,
+                'executed_price': self.executed_price,
+                'submit_quantity': self.quantity,
+                'executed_quantity': self.executed_quantity,
+                'submit_timestamp_day': s_ts.day,
+                'submit_timestamp_step': s_ts.step,
+                'executed_timestamp_day': e_ts.day,
+                'executed_timestamp_step': e_ts.step,
+                }
+
     def __repr__(self):
         by_agent = self.by.id
         ticker = self.asset.ticker
         type = 'buy' if self.is_buy() else 'sell'
         price = self.bid or self.ask
-        return f'{type} order on by {by_agent}; {ticker}: Q={self.quantity}, P={price}'
+        return f'{type} order by {by_agent} on {ticker} Q={self.quantity}, P={price};'
