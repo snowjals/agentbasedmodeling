@@ -75,6 +75,8 @@ class Agent:
         return cash_available
 
     def receive_dividend(self, stock):
+        print('not implemented yet.. update so `company` pays out :)')
+        import ipdb; ipdb.set_trace()
         qty = self.portfolio.assets[stock]
         if qty <= 0:
             return

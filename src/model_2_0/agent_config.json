@@ -5,7 +5,7 @@
         "trading_intensity": "np.random.uniform(0.10, 0.25)"
     },
     "trend": {
-        "n_agents": 2,
+        "n_agents": 10,
         "initial_cash": "np.random.normal(10000, 0)",
         "c": "np.random.uniform(0.5, 5)",
         "theta": "np.random.randint(5, 30)",
