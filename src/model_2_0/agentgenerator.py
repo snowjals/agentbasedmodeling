@@ -9,6 +9,15 @@ import numpy as np  # noqa
 
 class AgentGenerator:
     @staticmethod
+    def n_agents(config_path):
+        with open(config_path) as f:
+            config = json.load(f)
+        tot = 0
+        for each in config.keys():
+            tot += config[each]['n_agents']
+        return tot
+
+    @staticmethod
     def generate(config_path, assets, verbose=False):
         '''
         config_path: str, the path of the configuration.

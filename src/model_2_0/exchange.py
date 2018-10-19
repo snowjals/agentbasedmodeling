@@ -4,13 +4,15 @@ import json
 
 class Exchange:
 
-    def __init__(self, agents, market_portfolio):
+    def __init__(self, agents, market_portfolio, steps_per_day):
         self.agents = agents
         self.n_agents = len(self.agents)
         self.portfolio = market_portfolio
         self.orderbooks = {}
         self.reset_orderbooks()
         self.timestamp = None
+        self.realizations = None
+        self.steps_per_day = steps_per_day
 
     def get_timestamp(self):
         return self.timestamp
@@ -26,16 +28,17 @@ class Exchange:
 
         self.orderbooks[order.asset].submit(order, try_to_match=True)
 
-    def start_of_day(self):
+    def start_of_day(self, day):
         for stock, orderbook in self.orderbooks.items():
-            stock.calculate_dividend()
-            if stock.dividends[-1] > 0:
-                orderbook.highest_bid -= stock.dividends[-1]
-                orderbook.lowest_ask -= stock.dividends[-1]
-                for agent in self.agents:
-                    agent.receive_dividend(stock)  # possibly zero, if dont hold
+            if stock.is_earnings_day(day):
+                stock.company.calculate_earnings(self.realizations[stock.company], day)
+            if stock.is_dividend_day(day):
+                stock.pay_dividends(day)
+                div_per_share = stock.get_last_div_per_share()
+                orderbook.highest_bid -= div_per_share
+                orderbook.lowest_ask -= div_per_share
 
-    def end_of_day(self):
+    def end_of_day(self, day):
         for stock, orderbook in self.orderbooks.items():
             last_close = orderbook.get_last_completed()
             if last_close == 0:  # no trade is done
@@ -46,7 +49,6 @@ class Exchange:
             orderbook._update_max_bid_min_ask(stock.prices[-1])
 
     def orderbook_dumps(self):
-
         data = []
         for book in self.orderbooks.values():
             data += [each.get_completed_info()

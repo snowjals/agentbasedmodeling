@@ -1,11 +1,14 @@
+import numpy as np
 from agentgenerator import AgentGenerator
+from company import Company
 from timestamp import Timestamp
-from stock import Stock
+from share import Share
 from orderbook import Orderbook
 from exchange import Exchange
 from portfolio import Portfolio
 from tqdm import tqdm
 import json
+import test
 
 
 class Simulationmanager:
@@ -13,43 +16,66 @@ class Simulationmanager:
         self.n_days = n_days
         self.n_steps_per_day = n_steps_per_day
 
-        self.tickers = ['AXA',]
-        # self.tickers = ['AXA', 'B2H']
-        self.assets = [Stock(each, 100) for each in self.tickers]  # 100 in start price
+        initial_shares_per_agent = 10
+        n_agents = AgentGenerator.n_agents(agent_config_path)
+        print(n_agents)
+
+        self.tickers = 'EQNR DNO AKER MHG NRS LSG'.split(' ')
+        self.companies = []
+        for ticker in self.tickers:
+            comp = Company(ticker=ticker,
+                           n_shares=initial_shares_per_agent * n_agents,
+                           cash=100 * initial_shares_per_agent * n_agents,
+                           yield_policy=0.10)
+            self.companies.append(comp)
+
+        self.assets = [Share(comp) for comp in self.companies]
+
+        self.agents = AgentGenerator.generate(agent_config_path, self.assets, verbose=True)
+        n_agents = len(self.agents)
+        for agent in self.agents:
+            for stock in self.assets:
+                agent.portfolio.assets[stock] = initial_shares_per_agent
+
+        self.cov_matrix = test.generate_corr_matrix(len(self.tickers), 2, 0.2)
+        self.weights = np.ones(len(self.tickers))
+        self.weights = self.weights / self.weights.size
+
         self.book = Orderbook([], [])
 
         # self.assets = ...
-        self.agents = AgentGenerator.generate(agent_config_path, self.assets, verbose=True)
-
-        for agent in self.agents:
-            for stock in self.assets:
-                agent.portfolio.assets[stock] = 100
-                pass
 
         self.timestamp = Timestamp(0, 0)
 
         self.market_portfolio = Portfolio.empty_portfolio(self.assets)
-        self.exchange = Exchange(self.agents, self.market_portfolio)
+        self.exchange = Exchange(self.agents, self.market_portfolio, n_steps_per_day)
 
         self.history = []
+
+    def realize_earnings(self):
+        realizations = np.random.normal(0, np.matmul(self.cov_matrix, self.weights))
+        self.exchange.realizations = {k: v for (k, v) in
+                                      zip(self.companies, realizations)}
 
     def simulate(self, logname='/tmp/output.log'):
         for day in tqdm(range(self.n_days - self.timestamp.day)):
             self._simulate_day(day)
-            close = [each.get_last_price() for each in self.assets]
 
         with open(logname, 'w') as f:
             f.write(json.dumps(self.history))
 
     def _simulate_day(self, day):
-        self.exchange.start_of_day()  # yaawn
+        if (day % 68 == 0) and (day > 0):
+            print('realizing earnings')
+            self.realize_earnings()
+
+        self.exchange.start_of_day(day)
+
         for step in range(self.n_steps_per_day):
             self._simulate_step(day, step)
-        self.exchange.end_of_day()  # ding ding ding
+        self.exchange.end_of_day(day)
         orderbook_data = self.exchange.orderbook_dumps()
-        # import ipdb; ipdb.set_trace()
         self.history = self.history + orderbook_data
-        # self.history.append(orderbook_data)
 
     def _simulate_step(self, day, step):
         self.timestamp = Timestamp(day, step)
@@ -57,3 +83,8 @@ class Simulationmanager:
         self.exchange.timestamp = self.timestamp
         for each in self.agents:
             each.update_portfolio(self.exchange)
+
+    def write_log(self, fname, verbose=True):
+        with open(fname, 'w+') as f:
+            json.dump(self.history, f)
+            if verbose: print(f'Histroy written to {fname}')

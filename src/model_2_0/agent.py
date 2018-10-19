@@ -1,8 +1,10 @@
 from portfolio import Portfolio
 from order import Order
-from stock import Stock
+import utils
+from share import Share
 import numpy as np
 from utils import sigmoid
+import trading_utils as tu
 
 
 class Agent:
@@ -74,13 +76,12 @@ class Agent:
         cash_available = portfolio.get_cash_amount()
         return cash_available
 
-    def receive_dividend(self, stock):
-        print('not implemented yet.. update so `company` pays out :)')
-        import ipdb; ipdb.set_trace()
+    def receive_dividends(self, stock, div_per_share):
         qty = self.portfolio.assets[stock]
         if qty <= 0:
+            print('says receive dividends even though this shouldnt happen')
+            import ipdb; ipdb.set_trace()
             return
-        div_per_share = stock.dividends[-1]
 
         payout = div_per_share * qty
         self.portfolio.update_cash(payout)
@@ -96,9 +97,38 @@ class Agent:
             portfolio.update_cash(cash_delta)
             portfolio.assets[order.asset] += order.executed_quantity
 
-        else:
+            if self not in order.asset.company.shareholders:
+                # print('adding to shareholders')
+                order.asset.company.shareholders.append(self)
+
+        else:  # sell
             cash_delta = order.executed_price * order.executed_quantity
             portfolio.update_cash(cash_delta)
+
+            if portfolio.assets[order.asset] == 0:
+                try:
+                    order.asset.company.shareholders.remove(self)
+                except ValueError:
+                    pass
+
+    def summary(self):
+        portfolio = self.portfolio
+        cash_avail = portfolio.get_cash_amount()
+        market_value = 0
+        for stock in portfolio.get_stocks():
+            qty = portfolio.assets[stock]
+            market_value += stock.get_last_price() * qty
+
+        print('----------------')
+        print(f'id:\t\t{self.id}')
+        print(f'Cash:\t\t{cash_avail}')
+        print(f'Market cap:\t{market_value}')
+        print(f'Total:\t\t{market_value+cash_avail}')
+        print()
+        for stock in portfolio.get_stocks():
+            qty = portfolio.assets[stock]
+            price = stock.prices[-1]
+            print(f'{stock.ticker}\tQty={qty}\tprice={price:.1f}\t(total {qty*price:.1f})')
 
     def __repr__(self):
         portfolio = self.portfolio
@@ -120,13 +150,15 @@ class ValueAgent(Agent):
 
     def calculate_expected_asset_value(self, asset):
         # import ipdb;ipdb.set_trace()
-        if type(asset) == Stock or True:
+        if type(asset) == Share or True:
             '''
             (loosely) based on 'How learning in financial markets generates
             excess volatility and predictability in stock prices' by Allan G. Timmermann
 
             '''
             stock = asset
+            return 25  # TODO: fix value investor..
+
             yields = stock.get_n_last_dividend_yields(self.theta)
             mu = np.mean(yields)
             sgm = np.var(yields)
@@ -140,16 +172,31 @@ class ValueAgent(Agent):
             return value
 
     def update_portfolio(self, exchange):
+        PEs = {}
         for stock in self.portfolio.get_stocks():
-            value = self.calculate_expected_asset_value(stock)
-            price = stock.get_last_price()
-            discrepancy = value / price
+            orderbook = exchange.orderbooks[stock]
+            PEs[stock] = tu.get_historical_pe(stock, orderbook, 5, 0.5)
 
-            if discrepancy - 1 > self.epsilon:  # buy
-                self.buy_stock(stock, exchange)
-            elif discrepancy - 1 < self.epsilon:
-                self.sell_stock(stock, exchange)
-            else: pass  # not enough discrepancy. Just chill.
+        sell_stock = max(PEs.keys(), key=lambda x: PEs[x])
+        buy_stock = min(PEs.keys(), key=lambda x: PEs[x])
+
+        if sell_stock.ticker == buy_stock.ticker: return
+        # sell_stock, buy_stock = max(PEs), min(PEs)
+
+        # timestamp = self.exchange.timestamp
+        tu.trade_random_amount(self, sell_stock, exchange, sell=True)
+        tu.trade_random_amount(self, buy_stock, exchange, sell=False)
+
+
+            # value = self.calculate_expected_asset_value(stock)
+            # price = stock.get_last_price()
+            # discrepancy = value / price
+
+            # if discrepancy - 1 > self.epsilon:  # buy
+            #     self.buy_stock(stock, exchange)
+            # elif discrepancy - 1 < self.epsilon:
+            #     self.sell_stock(stock, exchange)
+            # else: pass  # not enough discrepancy. Just chill.
 
     def buy_stock(self, stock, exchange):
         cash_avail = self.portfolio.get_cash_amount()
@@ -171,8 +218,6 @@ class ValueAgent(Agent):
         self.submit_order(exchange, order)
 
 
-
-
 class NoiseAgent(Agent):
     def __init__(self, id, assets, initial_cash, trading_intensity):
         super().__init__(id, assets, initial_cash)
@@ -182,38 +227,13 @@ class NoiseAgent(Agent):
         portfolio = self.portfolio
         timestamp = exchange.get_timestamp()
 
+        # import ipdb; ipdb.set_trace()
         for each in portfolio.get_stocks():
-            should_I_trade = np.random.choice([True, False], p=(self.trading_intensity, 1-self.trading_intensity))
+            should_I_trade = utils.biased_bernoulli(self.trading_intensity / exchange.steps_per_day)
             if not should_I_trade: continue
 
-            orderbook = exchange.orderbooks[each]
-            highest_bid, lowest_ask = orderbook.highest_bid, orderbook.lowest_ask
-            M, m = max(highest_bid, lowest_ask), min(highest_bid, lowest_ask)
-            if (M-m)/m > 0.50: 
-                print('noticed major bid-ask discrepancy of >50%')
-                # import ipdb;ipdb.set_trace()
-            
-
-            do_buy = np.random.choice([True, False])
-
-            if do_buy:
-                # AaaAAAaAAAaAaAaaaAAAa!!!
-                price = highest_bid * np.random.normal(1.01, 0.01)
-                max_qty = self.get_available_funds() // price
-                if max_qty == 0:
-                    continue  # nvm, no noise
-                qty = np.random.randint(1, max_qty + 1)
-                order = self.create_order(each, price, qty, timestamp, buy=True)
-                self.submit_order(exchange, order)
-
-            else:
-                max_qty = portfolio.assets[each]
-                if max_qty == 0:
-                    continue
-                qty = np.random.randint(1, max_qty + 1)
-                price = lowest_ask / np.random.normal(1.01, 0.01)
-                order = self.create_order(each, price, qty, timestamp, buy=False)
-                self.submit_order(exchange, order)
+            do_sell = np.random.choice([True, False])
+            tu.trade_random_amount(self, each, exchange, sell=do_sell)
 
 
 class TrendAgent(Agent):
@@ -232,16 +252,22 @@ class TrendAgent(Agent):
         for stock in portfolio.get_stocks():
 
             # don't do trade there is not enough price history.
-            highest_bid, lowest_ask = exchange.orderbooks[stock].get_bid_ask(stock)
+            orderbook = exchange.orderbooks[stock]
+            highest_bid, lowest_ask = orderbook.get_bid_ask(stock)
 
             enough_history = len(stock.prices) > self.theta
             if not enough_history: continue
 
-            div_period = min(len(stock.dividends), self.theta)
-            D = sum(stock.dividends[-div_period:])
+            div_period = min(stock.company.dividends.size, self.theta)
+            # total dividend per share in period
+            cumulative_dividends = stock.company.dividends.iloc[-div_period:].sum() / stock.company.n_shares
+            D = cumulative_dividends
 
-            momentum_up = np.log(highest_bid + D) - np.log(stock.prices[-self.theta]) > self.epsilon  # noqa
-            momentum_down = np.log(lowest_ask  + D) - np.log(stock.prices[-self.theta]) > self.epsilon  # noqa
+            momentum = tu.trading_momentum(stock, orderbook, self.theta, include_intraday=True)
+            momentum_up = momentum > self.epsilon
+            momentum_down = momentum < -self.epsilon
+            # momentum_up = np.log(highest_bid + D) - np.log(stock.prices[-self.theta]) > self.epsilon  # noqa
+            # momentum_down = np.log(lowest_ask  + D) - np.log(stock.prices[-self.theta]) < -self.epsilon  # noqa
             # momentum_up = np.log(highest_bid) - np.log(stock.prices[-self.theta]) > self.epsilon
             # momentum_down = np.log(lowest_ask + sum(stock.dividends[-self.theta:])) ) - np.log(stock.prices[-self.theta]) < -self.epsilon
             can_buy_one = portfolio.get_cash_amount() > lowest_ask

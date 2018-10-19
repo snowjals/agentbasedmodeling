@@ -1,131 +1,32 @@
 #
-from scipy import stats 
-import numpy as np
-from stock import Stock
-from agent import Agent, NoiseAgent
-from portfolio import Portfolio
-from orderbook import Orderbook
-from order import Order
-from timestamp import Timestamp
-from exchange import Exchange
-from agentgenerator import AgentGenerator
-from simulationmanager import Simulationmanager
-tickers = ['AXA', 'EQNR', 'NHY', 'YARA', 'B2H']
-assets = [Stock(each, 100) for each in tickers]
-mng = Simulationmanager(1350, 5, None, 'agent_config.json')
-agents = mng.agents
+import numpy as np  # noqa
+import pandas as pd  # noqa
+import matplotlib.pyplot as plt
 
-cash_start = sum(e.get_available_funds() for e in agents)
-stocks_start = sum(list(e.portfolio.assets.values())[0] for e in agents)
+# from company import Company
+# from share import Share
+# from agent import Agent, NoiseAgent
+# from portfolio import Portfolio
+# from orderbook import Orderbook
+# from order import Order
+# from timestamp import Timestamp
+# from exchange import Exchange
+# from agentgenerator import AgentGenerator
+from simulationmanager import Simulationmanager
+
+plt.ion()
+
+n_days = 150
+periods_per_day = 10
+mng = Simulationmanager(n_days, periods_per_day, None, 'agent_config.json')
+agents = mng.agents
 
 mng.simulate()
 
-cash_end = sum(e.get_available_funds() for e in agents)
-stocks_end = sum(list(e.portfolio.assets.values())[0] for e in agents)
+stocks = mng.market_portfolio.get_stocks()
 
-print('cash in system:', cash_start, cash_end)
-print('stocks in system:', stocks_start, stocks_end)
+stocks[0].describe()
 
-stocks=mng.market_portfolio.get_stocks()
-returns = np.diff(np.log(X))
-
-S = stocks[0]
-D = np.array(S.dividends)
-P = np.array(S.prices)
-mask = D > 0
-
-yields = D / P
-
-plt.plot(yields)
-
-f, axs = plt.subplots(2, 1)
-axs = axs.flatten()
-
-axs[0].plot(D)
-axs[1].plot(yields)
-
-plt.ion()
-plt.plot(D)
-
-
-yields = D[mask]/P[mask]
-print(yields)
-0 / 0
-
-mu, std = np.mean(returns), np.std(returns)
-kurtosis, skew = stats.kurtosis(returns), stats.skew(returns)
-X = np.array(mng.history)
-
-import sys
-sys.exit(0)
-
-# plot stuff
-plt.ion()
-ax = plt.gca()
-ax.cla()
-for i, stock in enumerate(mng.assets):
-    ax.plot(X[:, i], label=stock.ticker)
-# ax.plot(stocks[0].dividends)
-plt.legend()
-mng.agents
-print(f'mu {mu}, std {std}, kurtosis {kurtosis}, skew {skew}')
-
-
-
-Portfolio.empty_portfolio(stocks)
-agent = Agent(stocks, 100)
-book = Orderbook([], [])
-steps = [1,1,2,3,4]
-prices = [90, 50, 100, 100, 110]
-qty = [1,1,2,1,1]
-for s,p,q in zip(steps, prices, qty):
-    ts = Timestamp(1, step)
-    order = Order.ask(agent, stocks[0], p, q, ts)
-    book.submit(order)
-my_buy_order = Order.ask(agent, stocks[0], 5, 1, ts)
-book.submit(my_buy_order, try_to_match=True)
-print('sell orders\n', book.sell_orders)
-print('\n\nbuy orders\n', book.buy_orders)
-
-
-import numpy as np
-from stock import Stock
-from agent import Agent, NoiseAgent
-from portfolio import Portfolio
-from orderbook import Orderbook
-from order import Order
-from timestamp import Timestamp
-from exchange import Exchange
-n_agents = 10
-tickers = ['AXA']
-stocks = [Stock(each, 24) for each in tickers]
-market_portfolio = Portfolio.empty_portfolio(stocks)
-exchange = Exchange(n_agents, market_portfolio)
-agents = [NoiseAgent(i, stocks, 1000, 1) for i in range(n_agents)]
-OB = exchange.orderbooks[stocks[0]]
-for each in agents:
-    each.portfolio.assets[stocks[0]] = 10  # all start with 10 stocks
-for t in range(10000):
-    for i, each in enumerate(agents):
-        ts = Timestamp(t, i)
-        exchange.timestamp = ts
-        each.update_portfolio(exchange)
-    OB.cancel_all_pending_orders()
-    tot_cash = sum(agent.get_available_funds() for agent in agents)
-    tot_cash = np.rint(tot_cash)
-    if tot_cash != 1000 * n_agents: import ipdb;ipdb.set_trace()
-    for each in stocks:
-        completed_orders = exchange.orderbooks[each].completed_orders
-        if len(completed_orders) > 1:
-            last_close = completed_orders[-1].executed_price
-        else:
-            last_close = each.prices[-1]
-        each.prices.append(last_close)
-        exchange.orderbooks[each].cancel_all_pending_orders()
-    tot_cash = sum(agent.get_available_funds() for agent in agents)
-    print(f'Day {t} -- got cash {tot_cash} and {stocks[0]}\n\n')
-
-
-plt.ion()
-Y = stocks[0].prices
-plt.plot(np.arange(len(Y)), Y)
+write = True
+if write:
+    mng.write_log('/tmp/simulationlog.json')

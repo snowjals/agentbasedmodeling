@@ -1,4 +1,5 @@
-from stock import Stock
+from share import Share
+# from stock import Stock
 from cash import Cash
 
 
@@ -21,6 +22,7 @@ class Portfolio:
         else:
             raise ValueError(f'Expected `assets` to be a list or dictionary. Got {type(assets)}')
 
+        self.bonds = 0
         self.cash = self._get_cash()
 
     @staticmethod
@@ -40,8 +42,7 @@ class Portfolio:
         return Portfolio(assets)
 
     def get_stocks(self):
-        retval= [each for each in list(self.assets.keys()) if type(each) == Stock]
-        return retval
+        return [each for each in list(self.assets.keys()) if type(each) == Share]
 
     def _get_cash(self):
         '''
@@ -74,15 +75,15 @@ class Portfolio:
 
     def get_stock(self, ticker):
         '''
-        Returns the Stock with a given ticker. If no stock
+        Returns the Share with a given ticker. If no stock
         is found, returns None.
 
         --
         Example:
-            get_stock('AXA') --> [Stock AXA@100]
+            get_stock('AXA') --> [Share AXA@100]
         '''
         for k, _ in self.assets:
-            if type(k) == Stock and k.ticker == ticker:
+            if type(k) == Share and k.ticker == ticker:
                 return k
 
     def __repr__(self):
