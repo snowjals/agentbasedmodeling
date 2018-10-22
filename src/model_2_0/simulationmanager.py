@@ -1,14 +1,16 @@
 import numpy as np
-from agentgenerator import AgentGenerator
-from company import Company
-from timestamp import Timestamp
-from share import Share
-from orderbook import Orderbook
-from exchange import Exchange
-from portfolio import Portfolio
 from tqdm import tqdm
 import json
 import test
+
+from agentgenerator import AgentGenerator
+from company import Company
+from timestamp import Timestamp
+from stock import Stock
+from orderbook import Orderbook
+from exchange import Exchange
+from portfolio import Portfolio
+from companygenerator import CompanyGenerator
 
 
 class Simulationmanager:
@@ -20,16 +22,18 @@ class Simulationmanager:
         n_agents = AgentGenerator.n_agents(agent_config_path)
         print(n_agents)
 
-        self.tickers = 'EQNR DNO AKER MHG NRS LSG'.split(' ')
-        self.companies = []
-        for ticker in self.tickers:
-            comp = Company(ticker=ticker,
-                           n_shares=initial_shares_per_agent * n_agents,
-                           cash=100 * initial_shares_per_agent * n_agents,
-                           yield_policy=0.10)
-            self.companies.append(comp)
+        self.companies = CompanyGenerator.generate_companies(n_companies=10, n_sectors=3)
+        self.tickers = [each.ticker for each in self.companies]
+        # self.tickers = 'EQNR DNO AKER MHG NRS LSG'.split(' ')
+        # self.companies = []
+        # for ticker in self.tickers:
+        #     comp = Company(ticker=ticker,
+        #                    n_shares=initial_shares_per_agent * n_agents,
+        #                    cash=100 * initial_shares_per_agent * n_agents,
+        #                    yield_policy=0.10)
+        #     self.companies.append(comp)
 
-        self.assets = [Share(comp) for comp in self.companies]
+        self.assets = [Stock(comp) for comp in self.companies]
 
         self.agents = AgentGenerator.generate(agent_config_path, self.assets, verbose=True)
         n_agents = len(self.agents)

@@ -1,8 +1,10 @@
+import numpy as np
+import itertools
+
 from portfolio import Portfolio
 from order import Order
 import utils
-from share import Share
-import numpy as np
+from stock import Stock
 from utils import sigmoid
 import trading_utils as tu
 
@@ -21,6 +23,7 @@ class Agent:
         self.portfolio = Portfolio.empty_portfolio(assets)
         self.portfolio.set_cash_amount(initial_cash)
         self.pending_orders = []
+        self.traget_portfolio = None
 
     def submit_order(self, exchange, order):
         '''
@@ -63,6 +66,11 @@ class Agent:
         '''
         pass
 
+    def find_target_portfolio(self, exchange):
+        '''
+        '''
+        pass
+
     def sufficient_funds(self, order):
         if not order.is_buy(): return True  # we always have enough cash to sell :)
 
@@ -75,6 +83,16 @@ class Agent:
         portfolio = self.portfolio
         cash_available = portfolio.get_cash_amount()
         return cash_available
+
+    def get_total_funds(self):
+        cash = self.get_available_funds()
+
+        portfolio = self.portfolio
+        market_value = 0
+        for stock in portfolio.get_stocks():
+            qty = portfolio.assets[stock]
+            market_value += stock.get_last_price() * qty
+        return market_value + cash
 
     def receive_dividends(self, stock, div_per_share):
         qty = self.portfolio.assets[stock]
@@ -114,10 +132,7 @@ class Agent:
     def summary(self):
         portfolio = self.portfolio
         cash_avail = portfolio.get_cash_amount()
-        market_value = 0
-        for stock in portfolio.get_stocks():
-            qty = portfolio.assets[stock]
-            market_value += stock.get_last_price() * qty
+        market_value = self.get_total_funds() - cash_avail
 
         print('----------------')
         print(f'id:\t\t{self.id}')
@@ -150,7 +165,7 @@ class ValueAgent(Agent):
 
     def calculate_expected_asset_value(self, asset):
         # import ipdb;ipdb.set_trace()
-        if type(asset) == Share or True:
+        if type(asset) == Stock or True:
             '''
             (loosely) based on 'How learning in financial markets generates
             excess volatility and predictability in stock prices' by Allan G. Timmermann
@@ -171,50 +186,86 @@ class ValueAgent(Agent):
             value = g / (1 + self.r_e - g) * D
             return value
 
+    def find_target_portfolio(self, exchange):
+        '''
+        populates `self.target_portfolio` of weights that the agent will
+        try to reach.
+        '''
+        self.target_portfolio = {}
+
+        for sector, g in itertools.groupby(exchange.portfolio.get_stocks(),
+                                           lambda x: x.company.sector):
+            g = np.array(list(g))  # make a array, so it can be reused
+
+            pe_values = [tu.get_historical_pe(stock,
+                                              orderbook=exchange.orderbooks[stock],
+                                              periods=self.theta,
+                                              decay=1) for stock in g]
+            pe_values = np.array(pe_values)
+
+            mean_pe = np.mean(pe_values)
+            long_indices = np.argwhere(pe_values < mean_pe).flatten()
+
+            weights = np.random.uniform(0, np.maximum(0, pe_values - mean_pe))
+            # weights = np.random.uniform(size=long_indices.size)
+            # print(pe_values)
+            import utils
+            utils.cprint(f'mean: {mean_pe:.2f} ' + ' '.join(['{}{:.2f}'.format('[g]' if e < mean_pe else '[r]', e) for e in pe_values]))
+
+            short_stocks = np.array(g)[~long_indices]
+            long_stocks = np.array(g)[long_indices]  # get those we will go long
+            for stock, weight in zip(long_stocks, weights):
+                self.target_portfolio[stock] = weight
+
+            for stock in short_stocks:
+                self.target_portfolio[stock] = 0.0
+            # import ipdb; ipdb.set_trace()
+
+        V = sum(self.target_portfolio.values())
+        if V == 0: return  # in this special case, all are above mean.
+        self.target_portfolio = {k: v / V for (k, v) in self.target_portfolio.items()}
+        X = np.array(list(self.target_portfolio.values()))
+        # print(X)
+        # print(max(self.target_portfolio.values()))
+
     def update_portfolio(self, exchange):
-        PEs = {}
-        for stock in self.portfolio.get_stocks():
-            orderbook = exchange.orderbooks[stock]
-            PEs[stock] = tu.get_historical_pe(stock, orderbook, 5, 0.5)
+        if exchange.get_timestamp().day % self.theta == 3:
+            self.find_target_portfolio(exchange)
+        else:
+            try:
+                tu.trade_target_portfolio(self, exchange)
+            except AttributeError: pass
 
-        sell_stock = max(PEs.keys(), key=lambda x: PEs[x])
-        buy_stock = min(PEs.keys(), key=lambda x: PEs[x])
-
-        if sell_stock.ticker == buy_stock.ticker: return
-        # sell_stock, buy_stock = max(PEs), min(PEs)
-
-        # timestamp = self.exchange.timestamp
-        tu.trade_random_amount(self, sell_stock, exchange, sell=True)
-        tu.trade_random_amount(self, buy_stock, exchange, sell=False)
-
-
-            # value = self.calculate_expected_asset_value(stock)
-            # price = stock.get_last_price()
-            # discrepancy = value / price
-
-            # if discrepancy - 1 > self.epsilon:  # buy
-            #     self.buy_stock(stock, exchange)
-            # elif discrepancy - 1 < self.epsilon:
-            #     self.sell_stock(stock, exchange)
-            # else: pass  # not enough discrepancy. Just chill.
-
-    def buy_stock(self, stock, exchange):
+    def buy_stock(self, stock, exchange, qty=None):
         cash_avail = self.portfolio.get_cash_amount()
         price = exchange.orderbooks[stock].lowest_ask * np.random.normal(1.01, .01)
         max_qty = cash_avail // price
+
+        if qty is not None and qty > max_qty:
+            qty = max_qty  # impossible
         if max_qty <= 0: return
 
         qty = np.random.randint(1, max_qty + 1)
         order = self.create_order(stock, price, qty, exchange.get_timestamp(), buy=True)
         self.submit_order(exchange, order)
 
-    def sell_stock(self, stock, exchange):
-        qty = self.portfolio.assets[stock]
+    def sell_stock(self, stock, exchange, qty=None):
+        '''
+        qty: the quantity to sell.
+
+        Performs a check; will sell `min(stock_holdings, qty)` if `qty` is None. Otherwise
+        sells asset_holdings of `stock_holdings`.
+        '''
+        max_qty = self.portfolio.assets[stock]
+        if qty is not None and qty > max_qty:
+            qty = max_qty
+        else:
+            qty = max_qty
+
         if qty == 0: return
 
         price = exchange.orderbooks[stock].highest_bid / np.random.normal(1.01, .01)
-        sell_qty = np.random.randint(1, qty+1)
-        order = self.create_order(stock, price, sell_qty, exchange.get_timestamp(), buy=False)
+        order = self.create_order(stock, price, qty, exchange.get_timestamp(), buy=False)
         self.submit_order(exchange, order)
 
 
